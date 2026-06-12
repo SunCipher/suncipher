@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Quantum Core | God-Tier Benchmark</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --neon-cyan: #00f3ff;
+            --neon-pink: #ff00ea;
+            --dark-bg: rgba(10, 10, 15, 0.7);
+        }
+        
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #000;
+            color: #fff;
+            font-family: 'Orbitron', sans-serif;
+            user-select: none;
+            overscroll-behavior: none;
+        }
+        canvas {
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            object-fit: cover; 
+        }
+
+        #dashboard {
+            position: fixed;
+            inset: 0;
+            z-index: 2;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: env(safe-area-inset-top, 20px) 15px 20px 15px;
+            box-sizing: border-box;
+            width: 100%;
+            height: 100%;
+        }
+        .panel {
+            background: var(--dark-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 243, 255, 0.3);
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.1);
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+        .header-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        @media (min-width: 768px) {
+            .header-panel {
+                flex-direction: row;
+                justify-content: space-between;
+            }
+        }
+        .title {
+            font-size: clamp(20px, 5vw, 28px);
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-pink));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0 0 15px 0;
+        }
+
+        .specs-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 12px;
+            color: #ccc;
+        }
+        @media (max-width: 450px) {
+            .specs-grid { grid-template-columns: 1fr; }
+        }
+        .spec-item span {
+            display: block;
+            color: var(--neon-cyan);
+            font-weight: 700;
+            font-size: clamp(12px, 3.5vw, 15px);
+            margin-top: 3px;
+            word-break: break-word;
+            white-space: normal;
+        }
+        .metrics-panel {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+        }
+        @media (min-width: 768px) {
+            .metrics-panel {
+                flex-direction: column;
+                align-items: flex-end;
+                text-align: right;
+            }
+        }
+        .metric-label {
+            font-size: 10px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .metric-value {
+            font-size: clamp(24px, 6vw, 36px);
+            font-weight: 900;
+            color: var(--neon-pink);
+            text-shadow: 0 0 10px rgba(255, 0, 234, 0.5);
+        }
+        .score-container {
+            text-align: center;
+            background: var(--dark-bg);
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 0, 234, 0.3);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        .score-label {
+            font-size: clamp(12px, 3vw, 16px);
+            letter-spacing: 3px;
+            color: var(--neon-cyan);
+        }
+        .score-value {
+            font-size: clamp(40px, 10vw, 72px);
+            font-weight: 900;
+            margin: 5px 0;
+            text-shadow: 0 0 20px rgba(0, 243, 255, 0.6);
+        }
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #222;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-pink));
+            box-shadow: 0 0 10px var(--neon-pink);
+            transition: width 0.1s linear;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="glcanvas"></canvas>
+
+    <div id="dashboard">
+        <div class="header-panel">
+            <div class="panel">
+                <h1 class="title">Quantum Core 2.0</h1>
+                <div class="specs-grid">
+                    <div class="spec-item">GPU Renderer<span id="gpu-name">Detecting...</span></div>
+                    <div class="spec-item">Logical Cores<span id="cpu-cores">Detecting...</span></div>
+                    <div class="spec-item">Platform<span id="os-name">Detecting...</span></div>
+                    <div class="spec-item">Internal Res<span id="screen-res">Detecting...</span></div>
+                </div>
+            </div>
+            <div class="panel metrics-panel">
+                <div>
+                    <div class="metric-label">Live FPS</div>
+                    <div class="metric-value" id="fps-val">--</div>
+                </div>
+                <div>
+                    <div class="metric-label">Frame Time (ms)</div>
+                    <div class="metric-value" style="color: var(--neon-cyan);" id="frametime-val">--</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="score-container">
+            <div class="score-label">SYNTHETIC GPU SCORE</div>
+            <div class="score-value" id="final-score">AWAITING</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- HARDWARE DETECTION & WEBGL SETUP ---
+        const canvas = document.getElementById('glcanvas');
+        
+        const gl = canvas.getContext('webgl', { 
+            antialias: false, 
+            depth: false,
+            powerPreference: "high-performance",
+            desynchronized: true 
+        });
+
+        let gpuName = "Unknown GPU";
+        if (gl) {
+            const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+            if (debugInfo) {
+                gpuName = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+            }
+        }
+
+        document.getElementById('gpu-name').innerText = gpuName;
+        document.getElementById('cpu-cores').innerText = navigator.hardwareConcurrency || "N/A";
+        document.getElementById('os-name').innerText = navigator.platform || "Unknown";
+
+        const BENCHMARK_WIDTH = 1920; 
+        const BENCHMARK_HEIGHT = 1080;
+
+        function lockResolution() {
+            canvas.width = BENCHMARK_WIDTH;
+            canvas.height = BENCHMARK_HEIGHT;
+            gl.viewport(0, 0, canvas.width, canvas.height);
+            document.getElementById('screen-res').innerText = `1080p (Fixed Target)`;
+        }
+        
+        lockResolution();
+
+        // --- GOD-TIER GPU KILLER SHADER ---
+        const vsSource = `
+            attribute vec2 position;
+            void main() { gl_Position = vec4(position, 0.0, 1.0); }
+        `;
+
+        const fsSource = `
+            precision highp float;
+            uniform vec2 u_resolution;
+            uniform float u_time;
+
+            float map(vec3 p) {
+                vec3 z = p;
+                float dr = 1.0;
+                float r = 0.0;
+                float power = 8.0 + sin(u_time * 0.5) * 2.0; 
+                
+                for (int i = 0; i < 10; i++) {
+                    r = length(z);
+                    if (r > 2.0) break;
+                    
+                    float theta = acos(z.z / r);
+                    float phi = atan(z.y, z.x);
+                    dr = pow(r, power - 1.0) * power * dr + 1.0;
+                    
+                    float zr = pow(r, power);
+                    theta = theta * power;
+                    phi = phi * power;
+                    
+                    z = zr * vec3(sin(theta) * cos(phi), sin(phi) * sin(theta), cos(theta));
+                    z += p;
+                }
+                return 0.5 * log(r) * r / dr;
+            }
+
+            vec3 calcNormal(vec3 p) {
+                vec2 e = vec2(0.001, 0.0);
+                return normalize(vec3(
+                    map(p + e.xyy) - map(p - e.xyy),
+                    map(p + e.yxy) - map(p - e.yxy),
+                    map(p + e.yyx) - map(p - e.yyx)
+                ));
+            }
+
+            float softShadow(vec3 ro, vec3 rd, float mint, float maxt, float k) {
+                float res = 1.0;
+                float t = mint;
+                for(int i = 0; i < 30; i++) {
+                    float h = map(ro + rd * t);
+                    if(h < 0.001) return 0.0;
+                    res = min(res, k * h / t);
+                    t += h;
+                    if(t > maxt) break;
+                }
+                return res;
+            }
+
+            void main() {
+                vec2 uv = (gl_FragCoord.xy - u_resolution.xy * 0.5) / u_resolution.y;
+                
+                vec3 ro = vec3(0.0, 0.0, -2.5);
+                vec3 rd = normalize(vec3(uv, 1.0));
+                
+                float an = u_time * 0.2;
+                mat2 rot = mat2(cos(an), -sin(an), sin(an), cos(an));
+                ro.xz *= rot;
+                rd.xz *= rot;
+                
+                float t = 0.0;
+                vec3 col = vec3(0.0);
+                
+                for (int i = 0; i < 100; i++) {
+                    vec3 p = ro + rd * t;
+                    float d = map(p);
+                    
+                    if (d < 0.001) {
+                        vec3 n = calcNormal(p);
+                        vec3 light = normalize(vec3(sin(u_time), 1.0, -1.0));
+                        
+                        float diff = max(dot(n, light), 0.0);
+                        float sha = softShadow(p, light, 0.02, 2.5, 8.0);
+                        
+                        vec3 baseCol = vec3(0.0, 1.0, 0.8);
+                        col = baseCol * diff * sha;
+                        col += vec3(1.0, 0.0, 0.8) * pow(max(dot(reflect(-light, n), -rd), 0.0), 32.0);
+                        break;
+                    }
+                    t += d;
+                    if (t > 4.0) break;
+                }
+                
+                col = mix(col, vec3(0.02, 0.0, 0.05), 1.0 - exp(-0.4 * t * t));
+                gl_FragColor = vec4(col, 1.0);
+            }
+        `;
+
+        function compileShader(type, source) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            return shader;
+        }
+
+        const program = gl.createProgram();
+        gl.attachShader(program, compileShader(gl.VERTEX_SHADER, vsSource));
+        gl.attachShader(program, compileShader(gl.FRAGMENT_SHADER, fsSource));
+        gl.linkProgram(program);
+        gl.useProgram(program);
+
+        const vertices = new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]);
+        const buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+        const posAttr = gl.getAttribLocation(program, "position");
+        gl.enableVertexAttribArray(posAttr);
+        gl.vertexAttribPointer(posAttr, 2, gl.FLOAT, false, 0, 0);
+
+        const resUniform = gl.getUniformLocation(program, "u_resolution");
+        const timeUniform = gl.getUniformLocation(program, "u_time");
+
+        // --- VARIABLES & DOM ELEMENTS ---
+        let lastTime = 0;
+        let frameCount = 0;
+        let isTesting = true;
+        const testDuration = 15000;
+        let startTime = 0;
+        let framesThisSecond = 0;
+        let lastFpsUpdateTime = 0;
+        let currentFPS = 0;
+
+        const fpsEl = document.getElementById('fps-val');
+        const frameTimeEl = document.getElementById('frametime-val');
+        const scoreEl = document.getElementById('final-score');
+        const progressEl = document.getElementById('progress');
+
+        // --- DIRECT AUTO-START (No events, no delays) ---
+        scoreEl.innerText = "BENCHMARKING...";
+        startTime = performance.now();
+        lastTime = startTime;
+        lastFpsUpdateTime = startTime;
+        requestAnimationFrame(render);
+
+        // --- RENDER LOOP ---
+        function render(now) {
+            if (!isTesting) return;
+
+            const dt = now - lastTime;
+            const elapsed = now - startTime;
+
+            gl.uniform2f(resUniform, canvas.width, canvas.height);
+            gl.uniform1f(timeUniform, elapsed * 0.001);
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+            frameCount++;
+            framesThisSecond++;
+            lastTime = now;
+
+            // FIX: UI Throttling back to 500ms to save DOM overhead
+            if (now - lastFpsUpdateTime >= 500) {
+                currentFPS = (framesThisSecond / (now - lastFpsUpdateTime)) * 1000;
+                fpsEl.innerText = Math.round(currentFPS);
+                frameTimeEl.innerText = (1000 / (currentFPS || 1)).toFixed(1);
+                framesThisSecond = 0;
+                lastFpsUpdateTime = now;
+            }
+
+            const progressPct = Math.min((elapsed / testDuration) * 100, 100);
+            progressEl.style.width = progressPct + '%';
+
+            if (elapsed < testDuration) {
+                requestAnimationFrame(render);
+            } else {
+                isTesting = false;
+                
+                const exactDurationSec = (now - startTime) / 1000;
+                const avgFPS = frameCount / exactDurationSec;
+                
+                const totalPixelsInMillions = (BENCHMARK_WIDTH * BENCHMARK_HEIGHT) / 1000000; 
+                
+                const magicMultiplier = 8452.3; 
+                const finalComputeScore = Math.round(avgFPS * totalPixelsInMillions * magicMultiplier); 
+                
+                scoreEl.innerText = finalComputeScore.toLocaleString();
+                scoreEl.style.color = "#00f3ff";
+                fpsEl.innerText = avgFPS.toFixed(1) + " (Avg)";
+                frameTimeEl.innerText = "-";
+                
+                setInterval(() => {
+                    gl.uniform1f(timeUniform, performance.now() * 0.0001);
+                    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+                }, 100);
+            }
+        }
+    </script>
+</body>
+</html>
